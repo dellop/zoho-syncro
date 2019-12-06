@@ -1,0 +1,75 @@
+//THIS FILE USES ZOHO CRM AS THE AUTHORITY AND PUSHES NEW CONTACTS OR UPDATE TO SYNCRO MSP
+
+//CREATE A NEW FIELD IN ZOHO CRM CALLED Syncro Customer ID IN ACCOUNTS AND INSERT THE CUSTOMER ID NUMBER FROM SYNCRO
+//PLACE THIS CODE AS A FUNCTION IN ZOHO CRM
+//CREATE A WORKFLOW RULE WHEN A CONTACT IS CREATED OR EDITED. USE THIS FUNCTION AS THE ONLY STEP.
+//ZOHO ARGUMENTS: email-> Email, phone = Phone, mobile = Mobile, customer_id = Syncro Customer ID, firstname = First Name, lastname = Last Name,
+//address -> Mailing Street, state -> Mailing State, city -> Mailing City, zip -> Mailing Zip
+
+subdomain = YOURSUBDOMAIN;
+api_key = YOURSYNCROAPIKEY;
+
+if(customer_id != NULL)
+{
+	//////////////////////////////////////// GET CONTACT ID /////////////////////////////////////////
+	//PULL ALL CONTACTS WITH CUSTOMER ID
+	syncro = invokeurl
+	[
+		url :"https://"+subdomain+".syncromsp.com/api/v1/contacts?api_key="+api_key+"&customer_id=" + customer_id
+		type :GET
+	];
+	//Data as JSON
+	data = syncro.getJSON("contacts");
+	//Create JSON List
+	jsonList = data.toJSONList();
+	//Create new collection
+	jsonCollection = Collection();
+	//Add contact id and email to list
+	for each  obj in jsonList
+	{
+		jsonCollection.insert(obj.getJSON("id"):obj.getJSON("email"));
+	}
+	//Get Contact ID
+	contactId = jsonCollection.getKey(email);
+	info contactId;
+	//if contact id is null, then add to syncro otherwise update
+	if(contactId != NULL)
+	{
+		////////////////////////////////////// UPDATE CONTACT //////////////////////////////////////////
+		updateList = Map();
+		updateList.put("name",firstname + " " + lastname);
+		updateList.put("address1",address);
+		updateList.put("mobile",mobile);
+		updateList.put("phone",phone);
+		updateList.put("city",city);
+		updateList.put("state",state);
+		updateList.put("zip",zip);
+		updateList.put("api_key",api_key);
+		sendUpdate = invokeurl
+		[
+			url :"https://"+subdomain+".syncromsp.com/api/v1/contacts/" + contactId
+			type :PUT
+			parameters:updateList
+		];
+	}
+	else
+	{
+		parameterList = Map();
+		parameterList.put("email",email);
+		parameterList.put("name",firstname + " " + lastname);
+		parameterList.put("mobile",mobile);
+		parameterList.put("phone",phone);
+		parameterList.put("address1",address);
+		parameterList.put("city",city);
+		parameterList.put("state",state);
+		parameterList.put("zip",zip);
+		parameterList.put("customer_id",customer_id);
+		parameterList.put("api_key",api_key);
+		send_sencro = invokeurl
+		[
+			url :"https://"+subdomain+".syncromsp.com/api/v1/contacts"
+			type :POST
+			parameters:parameterList
+		];
+	}
+}
